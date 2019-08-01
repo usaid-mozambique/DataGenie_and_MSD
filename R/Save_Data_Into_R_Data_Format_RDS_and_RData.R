@@ -7,3 +7,4 @@ setwd("~/ICPI/ICPI_MER_Structured_Dataset_SITE_IM_FY17-18_Mozambique_20180515_v1
 saveRDS(myfile, file = "myfile.RDS")
 #Restore the object
 myfile2 <- readRDS("myfile.RDS")
+# Test historical......
