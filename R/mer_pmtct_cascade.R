@@ -9,11 +9,11 @@ library(openxlsx)
 #---------------------------------------------
 # GENIE IMPORT AND SET UP OF BASE DATAFRAME. NOTE THAT "FILTER" AND "SELECT" CODE LINES ARE ANALYSIS SPECIFIC 
 
-df <- read.delim("~/R/datasets/Genie_Daily_82e86f5aaba344fa8e890f3ff91fa5ea.txt") %>%
+df <- read.delim("~/R/datasets/Genie_Daily_80bc795352084a32adb1299ebaa7a132.txt") %>%
   filter(Fiscal_Year == "2019") %>%
   select(-Qtr1, -Qtr2, -Qtr4) %>%
   rename(target = TARGETS,
-         site_id = orgUnitUID,
+         site_id = FacilityUID, 
          disag = standardizedDisaggregate,
          disag_p = otherDisaggregate,
          agency = FundingAgency,
@@ -173,7 +173,8 @@ pc_agency <- pc %>%
   mutate(per_p_stat = p_stat_n / p_stat_d, 
          per_p_stat_pos = p_stat_pos / p_stat_n,
          per_p_art = p_art / p_stat_pos
-  )
+  ) %>%
+  select(1:3, per_p_stat, p_stat_pos, per_p_stat_pos, p_stat_pos_alr, p_stat_pos_new, everything())
 
 
 #---------------------------------------------
@@ -193,8 +194,8 @@ pc_partner <- pc %>%
   mutate(per_p_stat = p_stat_n / p_stat_d, 
          per_p_stat_pos = p_stat_pos / p_stat_n,
          per_p_art = p_art / p_stat_pos
-  )
-
+  ) %>%
+  select(1:3, per_p_stat, p_stat_pos, per_p_stat_pos, p_stat_pos_alr, p_stat_pos_new, everything())
 
 
 #---------------------------------------------
@@ -214,7 +215,9 @@ pc_snu1 <- pc %>%
   mutate(per_p_stat = p_stat_n / p_stat_d, 
          per_p_stat_pos = p_stat_pos / p_stat_n,
          per_p_art = p_art / p_stat_pos
-  )
+  ) %>%
+  select(1:4, per_p_stat, p_stat_pos, per_p_stat_pos, p_stat_pos_alr, p_stat_pos_new, everything())
+
 
 #---------------------------------------------
 # PMTCT CASADE BY DISTRICT
@@ -233,7 +236,8 @@ pc_psnu <- pc %>%
   mutate(per_p_stat = p_stat_n / p_stat_d, 
          per_p_stat_pos = p_stat_pos / p_stat_n,
          per_p_art = p_art / p_stat_pos
-  )
+  ) %>%
+  select(1:5, per_p_stat, p_stat_pos, per_p_stat_pos, p_stat_pos_alr, p_stat_pos_new, everything())
 
 
 #---------------------------------------------
@@ -243,7 +247,8 @@ pc_site <- pc %>%
   mutate(per_p_stat = p_stat_n / p_stat_d, 
          per_p_stat_pos = p_stat_pos / p_stat_n,
          per_p_art = p_art / p_stat_pos
-  )
+  ) %>%
+  select(1:9, per_p_stat, p_stat_pos, per_p_stat_pos, p_stat_pos_alr, p_stat_pos_new, everything())
 
 
 #---------------------------------------------
@@ -251,54 +256,40 @@ pc_site <- pc %>%
 
 rm(p_stat_d, p_stat_n, p_stat_pos, p_art, p_stat_pos_new, p_stat_pos_alr, p_art_new, p_art_alr, ajuda, pc)
 
-
 wb <- createWorkbook()
+pct <- createStyle(numFmt = "0%", textDecoration = "italic")
+
 addWorksheet(wb, "pc_agency",
              tabColour = "#CC99FF",
              gridLines = FALSE)
-writeData(wb, "pc_agency", pc_agency)
+writeDataTable(wb, "pc_agency", pc_agency, tableStyle = "TableStyleLight5")
+addStyle(wb, "pc_agency", style = pct, cols=c(4,6,12), rows = 2:(nrow(pc_agency)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "pc_partner",
              tabColour = "#CC99FF",
              gridLines = FALSE)
-writeData(wb, "pc_partner", pc_partner)
+writeDataTable(wb, "pc_partner", pc_partner, tableStyle = "TableStyleLight5")
+addStyle(wb, "pc_partner", style = pct, cols=c(4,6,12), rows = 2:(nrow(pc_partner)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "pc_snu1",
              tabColour = "#CC99FF",
              gridLines = FALSE)
-writeData(wb, "pc_snu1", pc_snu1)
+writeDataTable(wb, "pc_snu1", pc_snu1, tableStyle = "TableStyleLight5")
+addStyle(wb, "pc_snu1", style = pct, cols=c(5,7,13), rows = 2:(nrow(pc_snu1)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "pc_psnu",
              tabColour = "#CC99FF",
              gridLines = FALSE)
-writeData(wb, "pc_psnu", pc_psnu)
+writeDataTable(wb, "pc_psnu", pc_psnu, tableStyle = "TableStyleLight5")
+addStyle(wb, "pc_psnu", style = pct, cols=c(6,8,14), rows = 2:(nrow(pc_psnu)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "pc_site",
              tabColour = "#CC99FF",
              gridLines = FALSE)
-writeData(wb, "pc_site", pc_site)
+writeDataTable(wb, "pc_site", pc_site, tableStyle = "TableStyleLight5")
+addStyle(wb, "pc_site", style = pct, cols=c(10,12,18), rows = 2:(nrow(pc_site)+1), gridExpand=TRUE)
 saveWorkbook(wb, file = "C:/Users/josep/Documents/R/r_projects/mer/output/pmtct/pmtct_cascade.xlsx", overwrite = TRUE)
-
-
-
-
-
-
-
-
-
-#---------------------------------------------
-# IDENTIFICATION OF ILLOGICAL RELATIONSHIPS IN PMTCT CASCADE 
-
-pc_flag1 <- pc %>% # FLAG 1 IDENTIFIES SITES WHERE PMTCT_STAT NUMERATOR IS > THAN DENOMINATOR
-  mutate(flag1 = 
-           if_else(p_stat_n > p_stat_d, 1, 0)) %>%
-  filter(flag1 == 1)
-
-pc_flag2 <- pc %>% # FLAG 2 IDENTIFIES SITES WHERE PMTCT_STAT_POS IS > THAN PMTCT_STAT NUMERATOR
-  mutate(flag2 = 
-           if_else(p_stat_pos > p_stat_n, 1, 0)) %>%
-  filter(flag2 == 1)
-
-pc_flag3 <- pc %>% # FLAG 3 IDENTIFIES SITES WHERE PMTCT_ART NUMERATOR IS > THAN PMTCT_STAT_POS
-  mutate(flag3 = 
-           if_else(p_art > p_stat_pos, 1, 0)) %>%
-  filter(flag3 == 1)
-
-

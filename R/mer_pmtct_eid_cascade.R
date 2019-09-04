@@ -9,11 +9,11 @@ library(openxlsx)
 #---------------------------------------------
 # GENIE IMPORT AND SET UP OF BASE DATAFRAME. NOTE THAT "FILTER" AND "SELECT" CODE LINES ARE ANALYSIS SPECIFIC 
 
-df <- read.delim("~/R/datasets/Genie_Daily_82e86f5aaba344fa8e890f3ff91fa5ea.txt") %>%
+df <- read.delim("~/R/datasets/Genie_Daily_80bc795352084a32adb1299ebaa7a132.txt") %>%
   filter(Fiscal_Year == "2019") %>%
   select(-Qtr1, -Qtr2, -Qtr4) %>%
   rename(target = TARGETS,
-         site_id = orgUnitUID,
+         site_id = FacilityUID, 
          disag = standardizedDisaggregate,
          disag_p = otherDisaggregate,
          agency = FundingAgency,
@@ -211,7 +211,7 @@ pc_eid_psnu <- pc_eid_temp %>%
          per_p_eid_n_12 = p_eid_n_12 / (p_eid_n_2 + p_eid_n_12),
          per_p_eid_hei_pos_art = p_eid_hei_pos_art / p_eid_hei_pos
   ) %>%
-  select(2:5, p_eid_d, p_eid_n, per_p_eid, p_eid_n_2, p_eid_n_12, per_p_eid_n_2, per_p_eid_n_12, everything())
+  select(1:4, p_eid_d, p_eid_n, per_p_eid, p_eid_n_2, p_eid_n_12, per_p_eid_n_2, per_p_eid_n_12, everything())
 
 #---------------------------------------------
 # PMTCT CASADE BY PROVINCE
@@ -231,7 +231,7 @@ pc_eid_snu1 <- pc_eid_temp %>%
          per_p_eid_n_12 = p_eid_n_12 / (p_eid_n_2 + p_eid_n_12),
          per_p_eid_hei_pos_art = p_eid_hei_pos_art / p_eid_hei_pos
   ) %>%
-  select(2:4, p_eid_d, p_eid_n, per_p_eid, p_eid_n_2, p_eid_n_12, per_p_eid_n_2, per_p_eid_n_12, everything())
+  select(1:3, p_eid_d, p_eid_n, per_p_eid, p_eid_n_2, p_eid_n_12, per_p_eid_n_2, per_p_eid_n_12, everything())
 
 #---------------------------------------------
 # PMTCT CASADE BY PARTNER
@@ -251,7 +251,7 @@ pc_eid_partner <- pc_eid_temp %>%
          per_p_eid_n_12 = p_eid_n_12 / (p_eid_n_2 + p_eid_n_12),
          per_p_eid_hei_pos_art = p_eid_hei_pos_art / p_eid_hei_pos
   ) %>%
-  select(2:3, p_eid_d, p_eid_n, per_p_eid, p_eid_n_2, p_eid_n_12, per_p_eid_n_2, per_p_eid_n_12, everything())
+  select(1:2, p_eid_d, p_eid_n, per_p_eid, p_eid_n_2, p_eid_n_12, per_p_eid_n_2, per_p_eid_n_12, everything())
 
 #---------------------------------------------
 # PMTCT CASADE BY AGENCY
@@ -274,34 +274,6 @@ pc_eid_agency <- pc_eid_temp %>%
   select(agency, p_eid_d, p_eid_n, per_p_eid, p_eid_n_2, p_eid_n_12, per_p_eid_n_2, per_p_eid_n_12, everything())
 
 
-#---------------------------------------------
-# PMTCT CASADE BY DISTRICT
-
-pc_psnu <- pc %>%
-  group_by(partner, SNU1, PSNU) %>%
-  summarize(p_stat_d = sum(p_stat_d, na.rm = TRUE),
-            p_stat_n = sum(p_stat_n, na.rm = TRUE),
-            p_stat_pos = sum(p_stat_pos, na.rm = TRUE),
-            p_stat_pos_alr = sum(p_stat_pos_alr, na.rm = TRUE),
-            p_stat_pos_new = sum(p_stat_pos_new, na.rm = TRUE),
-            p_art = sum(p_art, na.rm = TRUE),
-            p_art_alr = sum(p_art_alr, na.rm = TRUE), 
-            p_art_new = sum(p_art_new, na.rm = TRUE)) %>%
-  ungroup() %>%
-  mutate(per_p_stat = p_stat_n / p_stat_d, 
-         per_p_stat_pos = p_stat_pos / p_stat_n,
-         per_p_art = p_art / p_stat_pos
-  )
-
-
-#---------------------------------------------
-# PMTCT CASCADE BY SITE
-
-pc_site <- pc %>%
-  mutate(per_p_stat = p_stat_n / p_stat_d, 
-         per_p_stat_pos = p_stat_pos / p_stat_n,
-         per_p_art = p_art / p_stat_pos
-  )
 
 
 #---------------------------------------------
@@ -309,27 +281,42 @@ pc_site <- pc %>%
 
 rm(pc_eid_temp, p_eid_d, p_eid_n, p_eid_n_2, p_eid_n_12, p_eid_hei_pos, p_eid_hei_pos_art)
 
-
 wb <- createWorkbook()
+pct <- createStyle(numFmt = "0%", textDecoration = "italic")
+
 addWorksheet(wb, "pc_eid_agency",
-             tabColour = "#0000FF",
+             tabColour = "#993366",
              gridLines = FALSE)
-writeData(wb, "pc_eid_agency", pc_eid_agency)
+writeDataTable(wb, "pc_eid_agency", pc_eid_agency, tableStyle = "TableStyleLight3")
+addStyle(wb, "pc_eid_agency", style = pct, cols=c(4,7,8,11), rows = 2:(nrow(pc_eid_agency)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "pc_eid_partner",
-             tabColour = "#0000FF",
+             tabColour = "#993366",
              gridLines = FALSE)
-writeData(wb, "pc_eid_partner", pc_eid_partner)
-addWorksheet(wb, "pc_snu1",
-             tabColour = "#0000FF",
+writeDataTable(wb, "pc_eid_partner", pc_eid_partner, tableStyle = "TableStyleLight3")
+addStyle(wb, "pc_eid_partner", style = pct, cols=c(5,8,9,12), rows = 2:(nrow(pc_eid_partner)+1), gridExpand=TRUE)
+
+
+addWorksheet(wb, "pc_eid_snu1",
+             tabColour = "#993366",
              gridLines = FALSE)
-writeData(wb, "pc_eid_snu1", pc_eid_snu1)
+writeDataTable(wb, "pc_eid_snu1", pc_eid_snu1, tableStyle = "TableStyleLight3")
+addStyle(wb, "pc_eid_snu1", style = pct, cols=c(6,9,10,13), rows = 2:(nrow(pc_eid_snu1)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "pc_eid_psnu",
-             tabColour = "#0000FF",
+             tabColour = "#993366",
              gridLines = FALSE)
-writeData(wb, "pc_eid_psnu", pc_eid_psnu)
+writeDataTable(wb, "pc_eid_psnu", pc_eid_psnu, tableStyle = "TableStyleLight3")
+addStyle(wb, "pc_eid_psnu", style = pct, cols=c(7,10,11,14), rows = 2:(nrow(pc_eid_psnu)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "pc_eid_site",
-             tabColour = "#0000FF",
+             tabColour = "#993366",
              gridLines = FALSE)
-writeData(wb, "pc_eid_site", pc_eid_site)
+writeDataTable(wb, "pc_eid_site", pc_eid_site, tableStyle = "TableStyleLight3")
+addStyle(wb, "pc_eid_site", style = pct, cols=c(10,13,14,17), rows = 2:(nrow(pc_eid_site)+1), gridExpand=TRUE)
 saveWorkbook(wb, file = "C:/Users/josep/Documents/R/r_projects/mer/output/pmtct/pmtct__eid_cascade.xlsx", overwrite = TRUE)
+
 

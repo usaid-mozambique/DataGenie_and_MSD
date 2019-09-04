@@ -9,9 +9,9 @@ library(openxlsx)
 #---------------------------------------------
 # GENIE IMPORT AND SET UP OF BASE DATAFRAME. NOTE THAT "FILTER" AND "SELECT" CODE LINES ARE ANALYSIS SPECIFIC 
 
-df <- read.delim("~/R/datasets/Genie_Daily_82e86f5aaba344fa8e890f3ff91fa5ea.txt") %>% ####### NEEDS TO BE MANUALLY IMPORTED THROUGH MENU WITH EACH DATA GENIE UPDATE
+df <- read.delim("~/R/datasets/Genie_Daily_80bc795352084a32adb1299ebaa7a132.txt") %>% ####### NEEDS TO BE MANUALLY IMPORTED THROUGH MENU WITH EACH DATA GENIE UPDATE
   rename(target = TARGETS, 
-         site_id = orgUnitUID, 
+         site_id = FacilityUID, 
          disag = standardizedDisaggregate, 
          agency = FundingAgency, 
          site = SiteName, 
@@ -128,41 +128,67 @@ tx_new_site <- df %>%
 
 
 #---------------------------------------------
-##CREATE EXCEL WORKBOOK WITH TX_curr OUTPUT
+##CREATE EXCEL WORKBOOK WITH TX_CURR OUTPUT
+
+wb <- createWorkbook()
+pct <- createStyle(numFmt = "0%", textDecoration = "italic")
+
 
 wb <- createWorkbook()
 addWorksheet(wb, "tx_curr_agency",
-             tabColour = "#99CC00",
+             tabColour = "#99CCFF",
              gridLines = FALSE)
-writeData(wb, "tx_curr_agency", tx_curr_agency)
+writeDataTable(wb, "tx_curr_agency", tx_curr_agency, tableStyle = "TableStyleLight2")
+addStyle(wb, "tx_curr_agency", style = pct, cols=c(7:9), rows = 2:(nrow(tx_curr_agency)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "tx_curr_snu1",
-             tabColour = "#99CC00",
+             tabColour = "#99CCFF",
              gridLines = FALSE)
-writeData(wb, "tx_curr_snu1", tx_curr_snu1)
+writeDataTable(wb, "tx_curr_snu1", tx_curr_snu1, tableStyle = "TableStyleLight2")
+addStyle(wb, "tx_curr_snu1", style = pct, cols=c(9:11), rows = 2:(nrow(tx_curr_snu1)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "tx_curr_psnu",
-             tabColour = "#99CC00",
+             tabColour = "#99CCFF",
              gridLines = FALSE)
-writeData(wb, "tx_curr_psnu", tx_curr_psnu)
+writeDataTable(wb, "tx_curr_psnu", tx_curr_psnu, tableStyle = "TableStyleLight2")
+addStyle(wb, "tx_curr_psnu", style = pct, cols=c(10:12), rows = 2:(nrow(tx_curr_psnu)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "tx_curr_site",
-             tabColour = "#99CC00",
+             tabColour = "#99CCFF",
              gridLines = FALSE)
-writeData(wb, "tx_curr_site", tx_curr_site)
+writeDataTable(wb, "tx_curr_site", tx_curr_site, tableStyle = "TableStyleLight2")
+addStyle(wb, "tx_curr_site", style = pct, cols=c(12:14), rows = 2:(nrow(tx_curr_site)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "tx_new_agency",
-             tabColour = "#FFCC00",
+             tabColour = "#993366",
              gridLines = FALSE)
-writeData(wb, "tx_new_agency", tx_new_agency)
+writeDataTable(wb, "tx_new_agency", tx_new_agency, tableStyle = "TableStyleLight3")
+addStyle(wb, "tx_new_agency", style = pct, cols=c(7:8), rows = 2:(nrow(tx_new_agency)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "tx_new_snu1",
-             tabColour = "#FFCC00",
+             tabColour = "#993366",
              gridLines = FALSE)
-writeData(wb, "tx_new_snu1", tx_new_snu1)
+writeDataTable(wb, "tx_new_snu1", tx_new_snu1, tableStyle = "TableStyleLight3")
+addStyle(wb, "tx_new_snu1", style = pct, cols=c(9:10), rows = 2:(nrow(tx_new_snu1)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "tx_new_psnu",
-             tabColour = "#FFCC00",
+             tabColour = "#993366",
              gridLines = FALSE)
-writeData(wb, "tx_new_psnu", tx_new_psnu)
+writeDataTable(wb, "tx_new_psnu", tx_new_psnu, tableStyle = "TableStyleLight3")
+addStyle(wb, "tx_new_psnu", style = pct, cols=c(10:11), rows = 2:(nrow(tx_new_psnu)+1), gridExpand=TRUE)
+
+
 addWorksheet(wb, "tx_new_site",
-             tabColour = "#FFCC00",
+             tabColour = "#993366",
              gridLines = FALSE)
-writeData(wb, "tx_new_site", tx_new_site)
+writeDataTable(wb, "tx_new_site", tx_new_site, tableStyle = "TableStyleLight3")
+addStyle(wb, "tx_new_site", style = pct, cols=c(12:13), rows = 2:(nrow(tx_new_site)+1), gridExpand=TRUE)
 
 saveWorkbook(wb, file = "C:/Users/josep/Documents/R/r_projects/mer/output/ct/tx_summary.xlsx", overwrite = TRUE)
 

@@ -9,9 +9,9 @@ library(openxlsx)
 #---------------------------------------------
 # GENIE IMPORT AND SET UP OF BASE DATAFRAME. NOTE THAT "FILTER" AND "SELECT" CODE LINES ARE ANALYSIS SPECIFIC 
 
-df <- read.delim("~/R/datasets/Genie_Daily_82e86f5aaba344fa8e890f3ff91fa5ea.txt") %>% ####### NEEDS TO BE MANUALLY IMPORTED THROUGH MENU WITH EACH DATA GENIE UPDATE
+df <- read.delim("~/R/datasets/Genie_Daily_80bc795352084a32adb1299ebaa7a132.txt") %>% ####### NEEDS TO BE MANUALLY IMPORTED THROUGH MENU WITH EACH DATA GENIE UPDATE
   rename(target = TARGETS, 
-         site_id = orgUnitUID, 
+         site_id = FacilityUID, 
          disag = standardizedDisaggregate, 
          agency = FundingAgency, 
          site = SiteName, 
