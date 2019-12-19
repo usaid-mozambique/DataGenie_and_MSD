@@ -8,6 +8,11 @@ library(janitor)
 library(readxl)
 library(openxlsx)
 
+#########################added by Cicero: but is not necessary
+#library(rlang)
+#library(devtools)
+#devtools::install_version('textfeatures', version='0.2.0', repos='http://cran.us.r-project.org')
+
 
 ##############################################
 # IMPORT SOURCE FILES
@@ -15,17 +20,22 @@ library(openxlsx)
 
 #---------------------------------------------
 # GENIE IMPORT AND SET UP OF BASE DATAFRAME. NOTE THAT "FILTER" AND "SELECT" CODE LINES ARE ANALYSIS SPECIFIC 
+df_complete <- read.delim("C:/Users/cnhantumbo/Documents/ICPI/MER FY2019 Q4 Pre-Cleaning/MER_Structured_Datasets_SITE_IM_FY17-20_20191115_v1_1_Mozambique.txt")
 
-df <- read.delim("~/R/datasets/genie/Genie_Daily_549c0e5ef1cd4cee8e261004cff4cc71.txt") %>% ####### NEEDS TO BE MANUALLY IMPORTED THROUGH MENU WITH EACH DATA GENIE UPDATE
-  filter(Fiscal_Year == "2019") %>%
-  rename(target = TARGETS,
-         site_id = FacilityUID, 
-         disag = standardizedDisaggregate,
-         agency = FundingAgency,
-         site = SiteName,
+df <- read.delim("C:/Users/cnhantumbo/Documents/ICPI/MER FY2019 Q4 Pre-Cleaning/MER_Structured_Datasets_SITE_IM_FY17-20_20191115_v1_1_Mozambique.txt") %>% ####### NEEDS TO BE MANUALLY IMPORTED THROUGH MENU WITH EACH DATA GENIE UPDATE
+  filter(fiscal_year == "2019") %>%
+  rename(target = targets,
+         site_id = facilityuid, 
+         disag = standardizeddisaggregate,
+         agency = fundingagency,
+         site = sitename,
          partner = mech_name,
          Q = starts_with("Qtr4") ####### DEFINE RESULTS PERIOD DESIRED
   )
+
+#This line was a request to from Tracy to extract HRH_CURR, not needed here
+#write.csv(df, file = "df_HRH.xlsx")
+
 
 df$partner <- as.character(df$partner)
 
@@ -41,7 +51,7 @@ df <- df %>%
 #---------------------------------------------
 # IMPORT OF COP19 AJUDA SITE LIST
 
-ajuda <- read_excel("~/R/datasets/ajuda_ia_phase_disag.xlsx") %>%
+ajuda <- read_excel("C:/Users/cnhantumbo/Documents/AJUDA/ajuda_ia_phase_disag.xlsx") %>%
   replace_na(list(ajuda = 0))
 
 
@@ -65,8 +75,8 @@ tx_curr_target <- df %>%
 
 tx_curr <- df %>%
   filter(indicator == "TX_CURR", disag == "Total Numerator", Q > 0) %>%
-  select(site_id, partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, Q) %>%
-  group_by(site_id, agency, partner, SNU1, PSNU, site) %>%
+  select(site_id, partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, Q) %>%
+  group_by(site_id, agency, partner, snu1, psnu, site) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = starts_with("Q")) 
@@ -155,14 +165,40 @@ cc_site <- tx_curr %>%
                   tx_pvls_n = 0,
                   ajuda = 0)
   ) %>%
+  
+# Error caused because is missing site_id in ajuda dataframe  
+  
+#  left_join(tx_curr_target, by = "site_id") %>%
+#  left_join(hts_tst, by = "site_id") %>%
+#  left_join(hts_tst_pos, by = "site_id") %>%
+#  left_join(tx_new, by = "site_id") %>%
+#  left_join(tx_pvls_d, by = "site_id") %>%
+#  left_join(tx_pvls_n, by  = "site_id") %>%
+# left_join(ajuda, by = "site_id") %>%
+#  replace_na(list(hts_tst = 0,
+#                  hts_tst_pos = 0,
+#                  tx_new = 0,
+#                  tx_curr = 0,
+#                  tx_pvls_d = 0,
+#                  tx_pvls_n = 0)
+#                 ajuda = 0)
+#  ) %>%
+
+  
   mutate(per_hts_tst_pos = hts_tst_pos / hts_tst,
          per_linkage = tx_new / hts_tst_pos,
          per_tx_curr_target = tx_curr / tx_curr_target,
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(site_id, agency, partner, SNU1, PSNU, site, ajuda, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
-  arrange(agency, partner, SNU1, PSNU, site)
+  select(site_id, agency, partner, snu1, psnu, site, ajuda, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
+  arrange(agency, partner, snu1, psnu, site)
+
+# Warning message: Column `site_id` joining factor and character vector, coercing into character vector
+
+# select(site_id, agency, partner, snu1, psnu, site, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
+#  arrange(agency, partner, snu1, psnu, site)
+
 
 #---------------------------------------------
 ##CLEAN-UP R ENVIRONMENT BY REMOVING UNNEEDED OBJECTS
@@ -200,8 +236,8 @@ cc_ajuda <- cc_site %>%
 
 tx_curr_target <- df %>%
   filter(indicator == "TX_CURR", disag == "Total Numerator", target > 0) %>%
-  select(partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, target) %>%
-  group_by(agency, partner, SNU1, PSNU) %>%
+  select(partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, target) %>%
+  group_by(agency, partner, snu1, psnu) %>%
   summarize(target = sum(target, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr_target = "target") 
@@ -211,14 +247,14 @@ tx_curr_target <- df %>%
 
 hts_tst <- df %>%
   filter(indicator == "HTS_TST", disag == "Total Numerator", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst = "Q")
 
 cc_psnu <- tx_curr_target %>%
-  left_join(hts_tst, by = "PSNU") %>%
+  left_join(hts_tst, by = "psnu") %>%
   replace_na(list(hts_tst = 0))
 
 #---------------------------------------------
@@ -226,14 +262,14 @@ cc_psnu <- tx_curr_target %>%
 
 hts_tst_pos <- df %>%
   filter(indicator == "HTS_TST_POS", disag == "Total Numerator", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst_pos = "Q")
 
 cc_psnu <- cc_psnu %>%
-  left_join(hts_tst_pos, by = "PSNU") %>%
+  left_join(hts_tst_pos, by = "psnu") %>%
   replace_na(list(hts_tst_pos = 0))
 
 #---------------------------------------------
@@ -241,14 +277,14 @@ cc_psnu <- cc_psnu %>%
 
 tx_new <- df %>%
   filter(indicator == "TX_NEW", disag == "Total Numerator", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_new = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_new, by = "PSNU") %>%
+  left_join(tx_new, by = "psnu") %>%
   replace_na(list(tx_new = 0))
 
 #---------------------------------------------
@@ -256,14 +292,14 @@ cc_psnu <- cc_psnu %>%
 
 tx_curr <- df %>%
   filter(indicator == "TX_CURR", disag == "Total Numerator", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_curr, by = "PSNU") %>%
+  left_join(tx_curr, by = "psnu") %>%
   replace_na(list(tx_curr = 0))
 
 #---------------------------------------------
@@ -271,14 +307,14 @@ cc_psnu <- cc_psnu %>%
 
 tx_pvls_d <- df %>%
   filter(indicator == "TX_PVLS", disag == "Total Denominator", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_d = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_pvls_d, by = "PSNU") %>%
+  left_join(tx_pvls_d, by = "psnu") %>%
   replace_na(list(tx_pvls_d = 0))
 
 #---------------------------------------------
@@ -286,8 +322,8 @@ cc_psnu <- cc_psnu %>%
 
 tx_pvls_n <- df %>%
   filter(indicator == "TX_PVLS", disag == "Total Numerator", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_n = "Q") 
@@ -301,7 +337,7 @@ tx_pvls_n <- df %>%
 ## CREATE DISTRICT CLINICAL CASCADE OBJECT
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_pvls_n, by = "PSNU") %>%
+  left_join(tx_pvls_n, by = "psnu") %>%
   replace_na(list(tx_pvls_n = 0)) %>%
   mutate(per_hts_tst_pos = hts_tst_pos / hts_tst,
          per_linkage = tx_new / hts_tst_pos,
@@ -309,13 +345,13 @@ cc_psnu <- cc_psnu %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(agency, partner, SNU1, PSNU, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, psnu, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 #---------------------------------------------
 ## CREATE PROVINCIAL CLINICAL CASCADE OBJECT
 
 cc_snu1 <- cc_psnu %>%
-  group_by(agency, partner, SNU1) %>%
+  group_by(agency, partner, snu1) %>%
   summarize(tx_curr_target = sum(tx_curr_target, na.rm = TRUE),
             hts_tst = sum(hts_tst, na.rm = TRUE),
             hts_tst_pos = sum(hts_tst_pos, na.rm = TRUE),
@@ -330,7 +366,7 @@ cc_snu1 <- cc_psnu %>%
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
   ungroup() %>%
-  select(agency, partner, SNU1, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 #---------------------------------------------
 ## CREATE PARTNER CLINICAL CASCADE OBJECT
@@ -477,7 +513,7 @@ addStyle(wb_overall, "cc_site", style = pct, cols=c(11,13,15,17,19), rows = 2:(n
 ##############################################
 
 df_fem <- df %>%
-  filter(Fiscal_Year == "2019", Sex == "Female")
+  filter(fiscal_year == "2019", sex == "Female")
 
 #############################################
 # CREATE SITE REFERENCE OBJECTS
@@ -499,8 +535,8 @@ tx_curr_target <- df_fem %>%
 
 tx_curr <- df_fem %>%
   filter(indicator == "TX_CURR", disag == "Age/Sex/HIVStatus", Q > 0) %>%
-  select(site_id, partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, Q) %>%
-  group_by(site_id, agency, partner, SNU1, PSNU, site) %>%
+  select(site_id, partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, Q) %>%
+  group_by(site_id, agency, partner, snu1, psnu, site) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = starts_with("Q")) 
@@ -552,7 +588,7 @@ tx_new <- df_fem %>%
 # TX_PVLS DENOMINATOR REFERENCE OBJECT
 
 tx_pvls_d <- df_fem %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "D", Q > 0) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "D", Q > 0) %>%
   select(site_id, Q) %>%
   group_by(site_id) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
@@ -563,7 +599,7 @@ tx_pvls_d <- df_fem %>%
 # TX_PVLS NUMERATOR REFERENCE OBJECT
 
 tx_pvls_n <- df_fem %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "N", Q > 0) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "N", Q > 0) %>%
   select(site_id, Q) %>%
   group_by(site_id) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
@@ -595,8 +631,8 @@ cc_site <- tx_curr %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(site_id, agency, partner, SNU1, PSNU, site, ajuda, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
-  arrange(agency, partner, SNU1, PSNU, site)
+  select(site_id, agency, partner, snu1, psnu, site, ajuda, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
+  arrange(agency, partner, snu1, psnu, site)
 
 
 #---------------------------------------------
@@ -635,8 +671,8 @@ cc_ajuda <- cc_site %>%
 
 tx_curr_target <- df_fem %>%
   filter(indicator == "TX_CURR", disag == "Age/Sex/HIVStatus", target > 0) %>%
-  select(partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, target) %>%
-  group_by(agency, partner, SNU1, PSNU) %>%
+  select(partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, target) %>%
+  group_by(agency, partner, snu1, psnu) %>%
   summarize(target = sum(target, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr_target = "target") 
@@ -646,14 +682,14 @@ tx_curr_target <- df_fem %>%
 
 hts_tst <- df_fem %>%
   filter(indicator == "HTS_TST", disag == "Modality/Age/Sex/Result", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst = "Q")
 
 cc_psnu <- tx_curr_target %>%
-  left_join(hts_tst, by = "PSNU") %>%
+  left_join(hts_tst, by = "psnu") %>%
   replace_na(list(hts_tst = 0))
 
 #---------------------------------------------
@@ -661,14 +697,14 @@ cc_psnu <- tx_curr_target %>%
 
 hts_tst_pos <- df_fem %>%
   filter(indicator == "HTS_TST_POS", disag == "Modality/Age/Sex/Result", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst_pos = "Q")
 
 cc_psnu <- cc_psnu %>%
-  left_join(hts_tst_pos, by = "PSNU") %>%
+  left_join(hts_tst_pos, by = "psnu") %>%
   replace_na(list(hts_tst_pos = 0))
 
 #---------------------------------------------
@@ -676,14 +712,14 @@ cc_psnu <- cc_psnu %>%
 
 tx_new <- df_fem %>%
   filter(indicator == "TX_NEW", disag == "Age/Sex/HIVStatus", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_new = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_new, by = "PSNU") %>%
+  left_join(tx_new, by = "psnu") %>%
   replace_na(list(tx_new = 0))
 
 #---------------------------------------------
@@ -691,38 +727,38 @@ cc_psnu <- cc_psnu %>%
 
 tx_curr <- df_fem %>%
   filter(indicator == "TX_CURR", disag == "Age/Sex/HIVStatus", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_curr, by = "PSNU") %>%
+  left_join(tx_curr, by = "psnu") %>%
   replace_na(list(tx_curr = 0))
 
 #---------------------------------------------
 # TX_PLVS_DEN REFERENCE OBJECT
 
 tx_pvls_d <- df_fem %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "D", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "D", Q > 0) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_d = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_pvls_d, by = "PSNU") %>%
+  left_join(tx_pvls_d, by = "psnu") %>%
   replace_na(list(tx_pvls_d = 0))
 
 #---------------------------------------------
 # TX_PLVS_NUM REFERENCE OBJECT
 
 tx_pvls_n <- df_fem %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "N", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "N", Q > 0) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_n = "Q") 
@@ -736,7 +772,7 @@ tx_pvls_n <- df_fem %>%
 ## CREATE DISTRICT CLINICAL CASCADE OBJECT
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_pvls_n, by = "PSNU") %>%
+  left_join(tx_pvls_n, by = "psnu") %>%
   replace_na(list(tx_pvls_n = 0)) %>%
   mutate(per_hts_tst_pos = hts_tst_pos / hts_tst,
          per_linkage = tx_new / hts_tst_pos,
@@ -744,13 +780,13 @@ cc_psnu <- cc_psnu %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(agency, partner, SNU1, PSNU, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, psnu, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 #---------------------------------------------
 ## CREATE PROVINCIAL CLINICAL CASCADE OBJECT
 
 cc_snu1 <- cc_psnu %>%
-  group_by(agency, partner, SNU1) %>%
+  group_by(agency, partner, snu1) %>%
   summarize(tx_curr_target = sum(tx_curr_target, na.rm = TRUE),
             hts_tst = sum(hts_tst, na.rm = TRUE),
             hts_tst_pos = sum(hts_tst_pos, na.rm = TRUE),
@@ -765,7 +801,7 @@ cc_snu1 <- cc_psnu %>%
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
   ungroup() %>%
-  select(agency, partner, SNU1, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 #---------------------------------------------
 ## CREATE PARTNER CLINICAL CASCADE OBJECT
@@ -911,7 +947,7 @@ addStyle(wb_female, "cc_site", style = pct, cols=c(11,13,15,17,19), rows = 2:(nr
 ##############################################
 
 df_mal <- df %>%
-  filter(Fiscal_Year == "2019", Sex == "Male")
+  filter(fiscal_year == "2019", sex == "Male")
 
 #############################################
 # CREATE SITE REFERENCE OBJECTS
@@ -933,8 +969,8 @@ tx_curr_target <- df_mal %>%
 
 tx_curr <- df_mal %>%
   filter(indicator == "TX_CURR", disag == "Age/Sex/HIVStatus", Q > 0) %>%
-  select(site_id, partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, Q) %>%
-  group_by(site_id, agency, partner, SNU1, PSNU, site) %>%
+  select(site_id, partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, Q) %>%
+  group_by(site_id, agency, partner, snu1, psnu, site) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = starts_with("Q")) 
@@ -986,7 +1022,7 @@ tx_new <- df_mal %>%
 # TX_PVLS DENOMINATOR REFERENCE OBJECT
 
 tx_pvls_d <- df_mal %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "D", Q > 0) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "D", Q > 0) %>%
   select(site_id, Q) %>%
   group_by(site_id) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
@@ -997,7 +1033,7 @@ tx_pvls_d <- df_mal %>%
 # TX_PVLS NUMERATOR REFERENCE OBJECT
 
 tx_pvls_n <- df_mal %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "N", Q > 0) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "N", Q > 0) %>%
   select(site_id, Q) %>%
   group_by(site_id) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
@@ -1029,8 +1065,8 @@ cc_site <- tx_curr %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(site_id, agency, partner, SNU1, PSNU, site, ajuda, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
-  arrange(agency, partner, SNU1, PSNU, site)
+  select(site_id, agency, partner, snu1, psnu, site, ajuda, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
+  arrange(agency, partner, snu1, psnu, site)
 
 
 #---------------------------------------------
@@ -1043,7 +1079,7 @@ rm(tx_curr_target, tx_curr, tx_new, tx_pvls_d, tx_pvls_n, hts_tst, hts_tst_pos)
 
 cc_ajuda <- cc_site %>%
   group_by(ajuda) %>%
-  summarize(tx_curr_target = sum(tx_curr_target, na.rm = TRUE),
+  summarize(tx_curr_target = sum(tx_curr_target, na. = TRUE),
             hts_tst = sum(hts_tst, na.rm = TRUE),
             hts_tst_pos = sum(hts_tst_pos, na.rm = TRUE),
             tx_new = sum(tx_new, na.rm = TRUE),
@@ -1069,8 +1105,8 @@ cc_ajuda <- cc_site %>%
 
 tx_curr_target <- df_mal %>%
   filter(indicator == "TX_CURR", disag == "Age/Sex/HIVStatus", target > 0) %>%
-  select(partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, target) %>%
-  group_by(agency, partner, SNU1, PSNU) %>%
+  select(partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, target) %>%
+  group_by(agency, partner, snu1, psnu) %>%
   summarize(target = sum(target, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr_target = "target") 
@@ -1080,14 +1116,14 @@ tx_curr_target <- df_mal %>%
 
 hts_tst <- df_mal %>%
   filter(indicator == "HTS_TST", disag == "Modality/Age/Sex/Result", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst = "Q")
 
 cc_psnu <- tx_curr_target %>%
-  left_join(hts_tst, by = "PSNU") %>%
+  left_join(hts_tst, by = "psnu") %>%
   replace_na(list(hts_tst = 0))
 
 #---------------------------------------------
@@ -1095,14 +1131,14 @@ cc_psnu <- tx_curr_target %>%
 
 hts_tst_pos <- df_mal %>%
   filter(indicator == "HTS_TST_POS", disag == "Modality/Age/Sex/Result", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1,psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst_pos = "Q")
 
 cc_psnu <- cc_psnu %>%
-  left_join(hts_tst_pos, by = "PSNU") %>%
+  left_join(hts_tst_pos, by = "psnu") %>%
   replace_na(list(hts_tst_pos = 0))
 
 #---------------------------------------------
@@ -1110,14 +1146,14 @@ cc_psnu <- cc_psnu %>%
 
 tx_new <- df_mal %>%
   filter(indicator == "TX_NEW", disag == "Age/Sex/HIVStatus", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_new = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_new, by = "PSNU") %>%
+  left_join(tx_new, by = "psnu") %>%
   replace_na(list(tx_new = 0))
 
 #---------------------------------------------
@@ -1125,38 +1161,38 @@ cc_psnu <- cc_psnu %>%
 
 tx_curr <- df_mal %>%
   filter(indicator == "TX_CURR", disag == "Age/Sex/HIVStatus", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_curr, by = "PSNU") %>%
+  left_join(tx_curr, by = "psnu") %>%
   replace_na(list(tx_curr = 0))
 
 #---------------------------------------------
 # TX_PLVS_DEN REFERENCE OBJECT
 
 tx_pvls_d <- df_mal %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "D", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "D", Q > 0) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_d = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_pvls_d, by = "PSNU") %>%
+  left_join(tx_pvls_d, by = "psnu") %>%
   replace_na(list(tx_pvls_d = 0))
 
 #---------------------------------------------
 # TX_PLVS_NUM REFERENCE OBJECT
 
 tx_pvls_n <- df_mal %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "N", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "N", Q > 0) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_n = "Q") 
@@ -1170,7 +1206,7 @@ tx_pvls_n <- df_mal %>%
 ## CREATE DISTRICT CLINICAL CASCADE OBJECT
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_pvls_n, by = "PSNU") %>%
+  left_join(tx_pvls_n, by = "psnu") %>%
   replace_na(list(tx_pvls_n = 0)) %>%
   mutate(per_hts_tst_pos = hts_tst_pos / hts_tst,
          per_linkage = tx_new / hts_tst_pos,
@@ -1178,13 +1214,13 @@ cc_psnu <- cc_psnu %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(agency, partner, SNU1, PSNU, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, psnu, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 #---------------------------------------------
 ## CREATE PROVINCIAL CLINICAL CASCADE OBJECT
 
 cc_snu1 <- cc_psnu %>%
-  group_by(agency, partner, SNU1) %>%
+  group_by(agency, partner, snu1) %>%
   summarize(tx_curr_target = sum(tx_curr_target, na.rm = TRUE),
             hts_tst = sum(hts_tst, na.rm = TRUE),
             hts_tst_pos = sum(hts_tst_pos, na.rm = TRUE),
@@ -1199,7 +1235,7 @@ cc_snu1 <- cc_psnu %>%
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
   ungroup() %>%
-  select(agency, partner, SNU1, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 #---------------------------------------------
 ## CREATE PARTNER CLINICAL CASCADE OBJECT
@@ -1345,7 +1381,7 @@ addStyle(wb_male, "cc_site", style = pct, cols=c(11,13,15,17,19), rows = 2:(nrow
 ##############################################
 
 df_ped <- df %>%
-  filter(Fiscal_Year == "2019", TrendsCoarse == "<15")
+  filter(fiscal_year == "2019", trendscoarse == "<15")
 
 ##############################################
 # CREATE SITE REFERENCE OBJECTS
@@ -1367,8 +1403,8 @@ tx_curr_target <- df_ped %>%
 
 tx_curr <- df_ped %>%
   filter(indicator == "TX_CURR", Q > 0) %>%
-  select(site_id, partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, Q) %>%
-  group_by(site_id, agency, partner, SNU1, PSNU, site) %>%
+  select(site_id, partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, Q) %>%
+  group_by(site_id, agency, partner, snu1, psnu, site) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = starts_with("Q")) 
@@ -1440,7 +1476,7 @@ tx_new <- df_ped %>%
 # TX_PVLS DENOMINATOR REFERENCE OBJECT
 
 tx_pvls_d <- df_ped %>%
-  filter(indicator == "TX_PVLS", numeratorDenom == "D", Q > 0) %>%
+  filter(indicator == "TX_PVLS", numeratordenom == "D", Q > 0) %>%
   select(site_id, Q) %>%
   group_by(site_id) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
@@ -1451,7 +1487,7 @@ tx_pvls_d <- df_ped %>%
 # TX_PVLS NUMERATOR REFERENCE OBJECT
 
 tx_pvls_n <- df_ped %>%
-  filter(indicator == "TX_PVLS", numeratorDenom == "N", Q > 0) %>%
+  filter(indicator == "TX_PVLS", numeratordenom == "N", Q > 0) %>%
   select(site_id, Q) %>%
   group_by(site_id) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
@@ -1488,8 +1524,8 @@ cc_ped_site <- tx_curr %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(site_id, agency, partner, SNU1, PSNU, site, ajuda, tx_curr_target, p_eid_n, p_eid_hei_pos, per_eid_pos, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
-  arrange(agency, partner, SNU1, PSNU, site)
+  select(site_id, agency, partner, snu1, psnu, site, ajuda, tx_curr_target, p_eid_n, p_eid_hei_pos, per_eid_pos, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
+  arrange(agency, partner, snu1, psnu, site)
 
 
 #---------------------------------------------
@@ -1531,8 +1567,8 @@ cc_ped_ajuda <- cc_ped_site %>%
 
 tx_curr_target <- df_ped %>%
   filter(indicator == "TX_CURR", target > 0) %>%
-  select(PSNU, target) %>%
-  group_by(PSNU) %>%
+  select(psnu, target) %>%
+  group_by(psnu) %>%
   summarize(target = sum(target, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr_target = "target") 
@@ -1542,8 +1578,8 @@ tx_curr_target <- df_ped %>%
 
 tx_curr <- df_ped %>%
   filter(indicator == "TX_CURR", Q > 0) %>%
-  select(agency, partner, SNU1, PSNU, Q) %>%
-  group_by(agency, partner, SNU1, PSNU) %>%
+  select(agency, partner, snu1, psnu, Q) %>%
+  group_by(agency, partner, snu1, psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = starts_with("Q")) 
@@ -1553,8 +1589,8 @@ tx_curr <- df_ped %>%
 
 hts_tst <- df_ped %>%
   filter(indicator == "HTS_TST", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst = starts_with("Q")) %>%
@@ -1565,8 +1601,8 @@ hts_tst <- df_ped %>%
 
 hts_tst_pos <- df_ped %>%
   filter(indicator == "HTS_TST_POS", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst_pos = starts_with("Q")) %>%
@@ -1577,8 +1613,8 @@ hts_tst_pos <- df_ped %>%
 
 p_eid_n <- df_ped %>%
   filter(indicator == "PMTCT_EID", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(p_eid_n = starts_with("Q"))
@@ -1588,8 +1624,8 @@ p_eid_n <- df_ped %>%
 
 p_eid_hei_pos <- df_ped %>%
   filter(indicator == "PMTCT_HEI_POS", disag == "Age/HIVStatus", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(p_eid_hei_pos = starts_with("Q"))
@@ -1599,8 +1635,8 @@ p_eid_hei_pos <- df_ped %>%
 
 tx_new <- df_ped %>%
   filter(indicator == "TX_NEW", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_new = starts_with("Q"))
@@ -1609,9 +1645,9 @@ tx_new <- df_ped %>%
 # TX_PVLS DENOMINATOR REFERENCE OBJECT
 
 tx_pvls_d <- df_ped %>%
-  filter(indicator == "TX_PVLS", numeratorDenom == "D", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  filter(indicator == "TX_PVLS", numeratordenom == "D", Q > 0) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_d = starts_with("Q"))
@@ -1620,9 +1656,9 @@ tx_pvls_d <- df_ped %>%
 # TX_PVLS NUMERATOR REFERENCE OBJECT
 
 tx_pvls_n <- df_ped %>%
-  filter(indicator == "TX_PVLS", numeratorDenom == "N", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  filter(indicator == "TX_PVLS", numeratordenom == "N", Q > 0) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_n = starts_with("Q"))
@@ -1631,14 +1667,14 @@ tx_pvls_n <- df_ped %>%
 # JOIN REFERENCE OBJECTS & CREATE DISTRICT CASCADE
 
 cc_ped_psnu <- tx_curr %>%
-  left_join(tx_curr_target, by = "PSNU") %>%
-  left_join(hts_tst, by = "PSNU") %>%
-  left_join(p_eid_n, by = "PSNU") %>%
-  left_join(hts_tst_pos, by = "PSNU") %>%
-  left_join(p_eid_hei_pos, by = "PSNU") %>%
-  left_join(tx_new, by = "PSNU") %>%
-  left_join(tx_pvls_d, by = "PSNU") %>%
-  left_join(tx_pvls_n, by  = "PSNU") %>%
+  left_join(tx_curr_target, by = "psnu") %>%
+  left_join(hts_tst, by = "psnu") %>%
+  left_join(p_eid_n, by = "psnu") %>%
+  left_join(hts_tst_pos, by = "psnu") %>%
+  left_join(p_eid_hei_pos, by = "psnu") %>%
+  left_join(tx_new, by = "psnu") %>%
+  left_join(tx_pvls_d, by = "psnu") %>%
+  left_join(tx_pvls_n, by  = "psnu") %>%
   replace_na(list(hts_tst = 0,
                   p_eid_n = 0,
                   hts_tst_pos = 0,
@@ -1655,13 +1691,13 @@ cc_ped_psnu <- tx_curr %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(agency, partner, SNU1, PSNU, tx_curr_target, p_eid_n, p_eid_hei_pos, per_eid_pos, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, psnu, tx_curr_target, p_eid_n, p_eid_hei_pos, per_eid_pos, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 #---------------------------------------------
 # CREATE PROVINCE CASCADE
 
 cc_ped_snu1 <- cc_ped_psnu %>%
-  group_by(agency, partner, SNU1) %>%
+  group_by(agency, partner, snu1) %>%
   summarize(tx_curr_target = sum(tx_curr_target, na.rm = TRUE),
             hts_tst = sum(hts_tst, na.rm = TRUE),
             p_eid_n = sum(p_eid_n, na.rm = TRUE),            
@@ -1679,7 +1715,7 @@ cc_ped_snu1 <- cc_ped_psnu %>%
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
   ungroup() %>%
-  select(agency, partner, SNU1, tx_curr_target, p_eid_n, p_eid_hei_pos, per_eid_pos, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, tx_curr_target, p_eid_n, p_eid_hei_pos, per_eid_pos, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 
 #---------------------------------------------
@@ -1858,8 +1894,8 @@ tx_curr_target <- df_cum %>%
 
 tx_curr <- df_cum %>%
   filter(indicator == "TX_CURR", disag == "Total Numerator", Q > 0) %>%
-  select(site_id, partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, Q) %>%
-  group_by(site_id, agency, partner, SNU1, PSNU, site) %>%
+  select(site_id, partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, Q) %>%
+  group_by(site_id, agency, partner, snu1, psnu, site) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = starts_with("Q")) 
@@ -1954,8 +1990,8 @@ cc_site <- tx_curr %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(site_id, agency, partner, SNU1, PSNU, site, ajuda, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
-  arrange(agency, partner, SNU1, PSNU, site)
+  select(site_id, agency, partner, snu1, psnu, site, ajuda, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
+  arrange(agency, partner, snu1, psnu, site)
 
 #---------------------------------------------
 ##CLEAN-UP R ENVIRONMENT BY REMOVING UNNEEDED OBJECTS
@@ -1993,8 +2029,8 @@ cc_ajuda <- cc_site %>%
 
 tx_curr_target <- df_cum %>%
   filter(indicator == "TX_CURR", disag == "Total Numerator", target > 0) %>%
-  select(partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, target) %>%
-  group_by(agency, partner, SNU1, PSNU) %>%
+  select(partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, target) %>%
+  group_by(agency, partner, snu1, psnu) %>%
   summarize(target = sum(target, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr_target = "target") 
@@ -2004,14 +2040,14 @@ tx_curr_target <- df_cum %>%
 
 hts_tst <- df_cum %>%
   filter(indicator == "HTS_TST", disag == "Total Numerator", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst = "Q")
 
 cc_psnu <- tx_curr_target %>%
-  left_join(hts_tst, by = "PSNU") %>%
+  left_join(hts_tst, by = "psnu") %>%
   replace_na(list(hts_tst = 0))
 
 #---------------------------------------------
@@ -2019,14 +2055,14 @@ cc_psnu <- tx_curr_target %>%
 
 hts_tst_pos <- df_cum %>%
   filter(indicator == "HTS_TST_POS", disag == "Total Numerator", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst_pos = "Q")
 
 cc_psnu <- cc_psnu %>%
-  left_join(hts_tst_pos, by = "PSNU") %>%
+  left_join(hts_tst_pos, by = "psnu") %>%
   replace_na(list(hts_tst_pos = 0))
 
 #---------------------------------------------
@@ -2034,14 +2070,14 @@ cc_psnu <- cc_psnu %>%
 
 tx_new <- df_cum %>%
   filter(indicator == "TX_NEW", disag == "Total Numerator", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_new = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_new, by = "PSNU") %>%
+  left_join(tx_new, by = "psnu") %>%
   replace_na(list(tx_new = 0))
 
 #---------------------------------------------
@@ -2049,14 +2085,14 @@ cc_psnu <- cc_psnu %>%
 
 tx_curr <- df_cum %>%
   filter(indicator == "TX_CURR", disag == "Total Numerator", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_curr, by = "PSNU") %>%
+  left_join(tx_curr, by = "psnu") %>%
   replace_na(list(tx_curr = 0))
 
 #---------------------------------------------
@@ -2064,14 +2100,14 @@ cc_psnu <- cc_psnu %>%
 
 tx_pvls_d <- df_cum %>%
   filter(indicator == "TX_PVLS", disag == "Total Denominator", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_d = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_pvls_d, by = "PSNU") %>%
+  left_join(tx_pvls_d, by = "psnu") %>%
   replace_na(list(tx_pvls_d = 0))
 
 #---------------------------------------------
@@ -2079,8 +2115,8 @@ cc_psnu <- cc_psnu %>%
 
 tx_pvls_n <- df_cum %>%
   filter(indicator == "TX_PVLS", disag == "Total Numerator", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_n = "Q") 
@@ -2094,7 +2130,7 @@ tx_pvls_n <- df_cum %>%
 ## CREATE DISTRICT CLINICAL CASCADE OBJECT
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_pvls_n, by = "PSNU") %>%
+  left_join(tx_pvls_n, by = "psnu") %>%
   replace_na(list(tx_pvls_n = 0)) %>%
   mutate(per_hts_tst_pos = hts_tst_pos / hts_tst,
          per_linkage = tx_new / hts_tst_pos,
@@ -2102,13 +2138,13 @@ cc_psnu <- cc_psnu %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(agency, partner, SNU1, PSNU, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, psnu, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 #---------------------------------------------
 ## CREATE PROVINCIAL CLINICAL CASCADE OBJECT
 
 cc_snu1 <- cc_psnu %>%
-  group_by(agency, partner, SNU1) %>%
+  group_by(agency, partner, snu1) %>%
   summarize(tx_curr_target = sum(tx_curr_target, na.rm = TRUE),
             hts_tst = sum(hts_tst, na.rm = TRUE),
             hts_tst_pos = sum(hts_tst_pos, na.rm = TRUE),
@@ -2123,7 +2159,7 @@ cc_snu1 <- cc_psnu %>%
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
   ungroup() %>%
-  select(agency, partner, SNU1, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 #---------------------------------------------
 ## CREATE PARTNER CLINICAL CASCADE OBJECT
@@ -2270,7 +2306,7 @@ addStyle(wb_overall_cum, "cc_site", style = pct, cols=c(11,13,15,17,19), rows = 
 ##############################################
 
 df_fem <- df_cum %>%
-  filter(Fiscal_Year == "2019", Sex == "Female")
+  filter(fiscal_year == "2019", sex == "Female")
 
 #############################################
 # CREATE SITE REFERENCE OBJECTS
@@ -2292,8 +2328,8 @@ tx_curr_target <- df_fem %>%
 
 tx_curr <- df_fem %>%
   filter(indicator == "TX_CURR", disag == "Age/Sex/HIVStatus", Q > 0) %>%
-  select(site_id, partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, Q) %>%
-  group_by(site_id, agency, partner, SNU1, PSNU, site) %>%
+  select(site_id, partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, Q) %>%
+  group_by(site_id, agency, partner, snu1, psnu, site) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = starts_with("Q")) 
@@ -2345,7 +2381,7 @@ tx_new <- df_fem %>%
 # TX_PVLS DENOMINATOR REFERENCE OBJECT
 
 tx_pvls_d <- df_fem %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "D", Q > 0) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "D", Q > 0) %>%
   select(site_id, Q) %>%
   group_by(site_id) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
@@ -2356,7 +2392,7 @@ tx_pvls_d <- df_fem %>%
 # TX_PVLS NUMERATOR REFERENCE OBJECT
 
 tx_pvls_n <- df_fem %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "N", Q > 0) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "N", Q > 0) %>%
   select(site_id, Q) %>%
   group_by(site_id) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
@@ -2388,8 +2424,8 @@ cc_site <- tx_curr %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(site_id, agency, partner, SNU1, PSNU, site, ajuda, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
-  arrange(agency, partner, SNU1, PSNU, site)
+  select(site_id, agency, partner, snu1, psnu, site, ajuda, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
+  arrange(agency, partner, snu1, psnu, site)
 
 
 #---------------------------------------------
@@ -2428,8 +2464,8 @@ cc_ajuda <- cc_site %>%
 
 tx_curr_target <- df_fem %>%
   filter(indicator == "TX_CURR", disag == "Age/Sex/HIVStatus", target > 0) %>%
-  select(partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, target) %>%
-  group_by(agency, partner, SNU1, PSNU) %>%
+  select(partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, target) %>%
+  group_by(agency, partner, snu1, psnu) %>%
   summarize(target = sum(target, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr_target = "target") 
@@ -2439,14 +2475,14 @@ tx_curr_target <- df_fem %>%
 
 hts_tst <- df_fem %>%
   filter(indicator == "HTS_TST", disag == "Modality/Age/Sex/Result", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst = "Q")
 
 cc_psnu <- tx_curr_target %>%
-  left_join(hts_tst, by = "PSNU") %>%
+  left_join(hts_tst, by = "psnu") %>%
   replace_na(list(hts_tst = 0))
 
 #---------------------------------------------
@@ -2454,14 +2490,14 @@ cc_psnu <- tx_curr_target %>%
 
 hts_tst_pos <- df_fem %>%
   filter(indicator == "HTS_TST_POS", disag == "Modality/Age/Sex/Result", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst_pos = "Q")
 
 cc_psnu <- cc_psnu %>%
-  left_join(hts_tst_pos, by = "PSNU") %>%
+  left_join(hts_tst_pos, by = "psnu") %>%
   replace_na(list(hts_tst_pos = 0))
 
 #---------------------------------------------
@@ -2469,14 +2505,14 @@ cc_psnu <- cc_psnu %>%
 
 tx_new <- df_fem %>%
   filter(indicator == "TX_NEW", disag == "Age/Sex/HIVStatus", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_new = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_new, by = "PSNU") %>%
+  left_join(tx_new, by = "psnu") %>%
   replace_na(list(tx_new = 0))
 
 #---------------------------------------------
@@ -2484,38 +2520,38 @@ cc_psnu <- cc_psnu %>%
 
 tx_curr <- df_fem %>%
   filter(indicator == "TX_CURR", disag == "Age/Sex/HIVStatus", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_curr, by = "PSNU") %>%
+  left_join(tx_curr, by = "psnu") %>%
   replace_na(list(tx_curr = 0))
 
 #---------------------------------------------
 # TX_PLVS_DEN REFERENCE OBJECT
 
 tx_pvls_d <- df_fem %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "D", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "D", Q > 0) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_d = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_pvls_d, by = "PSNU") %>%
+  left_join(tx_pvls_d, by = "psnu") %>%
   replace_na(list(tx_pvls_d = 0))
 
 #---------------------------------------------
 # TX_PLVS_NUM REFERENCE OBJECT
 
 tx_pvls_n <- df_fem %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "N", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "N", Q > 0) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_n = "Q") 
@@ -2529,7 +2565,7 @@ tx_pvls_n <- df_fem %>%
 ## CREATE DISTRICT CLINICAL CASCADE OBJECT
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_pvls_n, by = "PSNU") %>%
+  left_join(tx_pvls_n, by = "psnu") %>%
   replace_na(list(tx_pvls_n = 0)) %>%
   mutate(per_hts_tst_pos = hts_tst_pos / hts_tst,
          per_linkage = tx_new / hts_tst_pos,
@@ -2537,13 +2573,13 @@ cc_psnu <- cc_psnu %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(agency, partner, SNU1, PSNU, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, psnu, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 #---------------------------------------------
 ## CREATE PROVINCIAL CLINICAL CASCADE OBJECT
 
 cc_snu1 <- cc_psnu %>%
-  group_by(agency, partner, SNU1) %>%
+  group_by(agency, partner, snu1) %>%
   summarize(tx_curr_target = sum(tx_curr_target, na.rm = TRUE),
             hts_tst = sum(hts_tst, na.rm = TRUE),
             hts_tst_pos = sum(hts_tst_pos, na.rm = TRUE),
@@ -2558,7 +2594,7 @@ cc_snu1 <- cc_psnu %>%
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
   ungroup() %>%
-  select(agency, partner, SNU1, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 #---------------------------------------------
 ## CREATE PARTNER CLINICAL CASCADE OBJECT
@@ -2704,7 +2740,7 @@ addStyle(wb_female_cum, "cc_site", style = pct, cols=c(11,13,15,17,19), rows = 2
 ##############################################
 
 df_mal <- df_cum %>%
-  filter(Fiscal_Year == "2019", Sex == "Male")
+  filter(fiscal_year == "2019", sex == "Male")
 
 #############################################
 # CREATE SITE REFERENCE OBJECTS
@@ -2726,8 +2762,8 @@ tx_curr_target <- df_mal %>%
 
 tx_curr <- df_mal %>%
   filter(indicator == "TX_CURR", disag == "Age/Sex/HIVStatus", Q > 0) %>%
-  select(site_id, partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, Q) %>%
-  group_by(site_id, agency, partner, SNU1, PSNU, site) %>%
+  select(site_id, partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, Q) %>%
+  group_by(site_id, agency, partner, snu1, psnu, site) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = starts_with("Q")) 
@@ -2779,7 +2815,7 @@ tx_new <- df_mal %>%
 # TX_PVLS DENOMINATOR REFERENCE OBJECT
 
 tx_pvls_d <- df_mal %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "D", Q > 0) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "D", Q > 0) %>%
   select(site_id, Q) %>%
   group_by(site_id) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
@@ -2790,7 +2826,7 @@ tx_pvls_d <- df_mal %>%
 # TX_PVLS NUMERATOR REFERENCE OBJECT
 
 tx_pvls_n <- df_mal %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "N", Q > 0) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "N", Q > 0) %>%
   select(site_id, Q) %>%
   group_by(site_id) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
@@ -2822,8 +2858,8 @@ cc_site <- tx_curr %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(site_id, agency, partner, SNU1, PSNU, site, ajuda, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
-  arrange(agency, partner, SNU1, PSNU, site)
+  select(site_id, agency, partner, snu1, psnu, site, ajuda, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
+  arrange(agency, partner, snu1, psnu, site)
 
 
 #---------------------------------------------
@@ -2862,8 +2898,8 @@ cc_ajuda <- cc_site %>%
 
 tx_curr_target <- df_mal %>%
   filter(indicator == "TX_CURR", disag == "Age/Sex/HIVStatus", target > 0) %>%
-  select(partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, target) %>%
-  group_by(agency, partner, SNU1, PSNU) %>%
+  select(partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, target) %>%
+  group_by(agency, partner, snu1, psnu) %>%
   summarize(target = sum(target, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr_target = "target") 
@@ -2873,14 +2909,14 @@ tx_curr_target <- df_mal %>%
 
 hts_tst <- df_mal %>%
   filter(indicator == "HTS_TST", disag == "Modality/Age/Sex/Result", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst = "Q")
 
 cc_psnu <- tx_curr_target %>%
-  left_join(hts_tst, by = "PSNU") %>%
+  left_join(hts_tst, by = "psnu") %>%
   replace_na(list(hts_tst = 0))
 
 #---------------------------------------------
@@ -2888,14 +2924,14 @@ cc_psnu <- tx_curr_target %>%
 
 hts_tst_pos <- df_mal %>%
   filter(indicator == "HTS_TST_POS", disag == "Modality/Age/Sex/Result", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst_pos = "Q")
 
 cc_psnu <- cc_psnu %>%
-  left_join(hts_tst_pos, by = "PSNU") %>%
+  left_join(hts_tst_pos, by = "psnu") %>%
   replace_na(list(hts_tst_pos = 0))
 
 #---------------------------------------------
@@ -2903,14 +2939,14 @@ cc_psnu <- cc_psnu %>%
 
 tx_new <- df_mal %>%
   filter(indicator == "TX_NEW", disag == "Age/Sex/HIVStatus", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_new = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_new, by = "PSNU") %>%
+  left_join(tx_new, by = "psnu") %>%
   replace_na(list(tx_new = 0))
 
 #---------------------------------------------
@@ -2918,38 +2954,38 @@ cc_psnu <- cc_psnu %>%
 
 tx_curr <- df_mal %>%
   filter(indicator == "TX_CURR", disag == "Age/Sex/HIVStatus", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_curr, by = "PSNU") %>%
+  left_join(tx_curr, by = "psnu") %>%
   replace_na(list(tx_curr = 0))
 
 #---------------------------------------------
 # TX_PLVS_DEN REFERENCE OBJECT
 
 tx_pvls_d <- df_mal %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "D", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "D", Q > 0) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_d = "Q") 
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_pvls_d, by = "PSNU") %>%
+  left_join(tx_pvls_d, by = "psnu") %>%
   replace_na(list(tx_pvls_d = 0))
 
 #---------------------------------------------
 # TX_PLVS_NUM REFERENCE OBJECT
 
 tx_pvls_n <- df_mal %>%
-  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratorDenom == "N", Q > 0) %>%
-  select(indicator, disag, SNU1, PSNU, Fiscal_Year, Q) %>%
-  group_by(PSNU) %>%
+  filter(indicator == "TX_PVLS", disag == "Age/Sex/Indication/HIVStatus", numeratordenom == "N", Q > 0) %>%
+  select(indicator, disag, snu1, psnu, fiscal_year, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_n = "Q") 
@@ -2963,7 +2999,7 @@ tx_pvls_n <- df_mal %>%
 ## CREATE DISTRICT CLINICAL CASCADE OBJECT
 
 cc_psnu <- cc_psnu %>%
-  left_join(tx_pvls_n, by = "PSNU") %>%
+  left_join(tx_pvls_n, by = "psnu") %>%
   replace_na(list(tx_pvls_n = 0)) %>%
   mutate(per_hts_tst_pos = hts_tst_pos / hts_tst,
          per_linkage = tx_new / hts_tst_pos,
@@ -2971,13 +3007,13 @@ cc_psnu <- cc_psnu %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(agency, partner, SNU1, PSNU, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, psnu, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 #---------------------------------------------
 ## CREATE PROVINCIAL CLINICAL CASCADE OBJECT
 
 cc_snu1 <- cc_psnu %>%
-  group_by(agency, partner, SNU1) %>%
+  group_by(agency, partner, snu1) %>%
   summarize(tx_curr_target = sum(tx_curr_target, na.rm = TRUE),
             hts_tst = sum(hts_tst, na.rm = TRUE),
             hts_tst_pos = sum(hts_tst_pos, na.rm = TRUE),
@@ -2992,8 +3028,7 @@ cc_snu1 <- cc_psnu %>%
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
   ungroup() %>%
-  select(agency, partner, SNU1, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
-
+  select(agency, partner, snu1, tx_curr_target, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 #---------------------------------------------
 ## CREATE PARTNER CLINICAL CASCADE OBJECT
 
@@ -3138,7 +3173,7 @@ addStyle(wb_male_cum, "cc_site", style = pct, cols=c(11,13,15,17,19), rows = 2:(
 ##############################################
 
 df_ped <- df_cum %>%
-  filter(Fiscal_Year == "2019", TrendsCoarse == "<15")
+  filter(fiscal_year == "2019", trendscoarse == "<15")
 
 ##############################################
 # CREATE SITE REFERENCE OBJECTS
@@ -3160,8 +3195,8 @@ tx_curr_target <- df_ped %>%
 
 tx_curr <- df_ped %>%
   filter(indicator == "TX_CURR", Q > 0) %>%
-  select(site_id, partner, agency, indicator, disag, SNU1, PSNU, site, Fiscal_Year, Q) %>%
-  group_by(site_id, agency, partner, SNU1, PSNU, site) %>%
+  select(site_id, partner, agency, indicator, disag, snu1, psnu, site, fiscal_year, Q) %>%
+  group_by(site_id, agency, partner, snu1, psnu, site) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = starts_with("Q")) 
@@ -3233,7 +3268,7 @@ tx_new <- df_ped %>%
 # TX_PVLS DENOMINATOR REFERENCE OBJECT
 
 tx_pvls_d <- df_ped %>%
-  filter(indicator == "TX_PVLS", numeratorDenom == "D", Q > 0) %>%
+  filter(indicator == "TX_PVLS", numeratordenom == "D", Q > 0) %>%
   select(site_id, Q) %>%
   group_by(site_id) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
@@ -3244,7 +3279,7 @@ tx_pvls_d <- df_ped %>%
 # TX_PVLS NUMERATOR REFERENCE OBJECT
 
 tx_pvls_n <- df_ped %>%
-  filter(indicator == "TX_PVLS", numeratorDenom == "N", Q > 0) %>%
+  filter(indicator == "TX_PVLS", numeratordenom == "N", Q > 0) %>%
   select(site_id, Q) %>%
   group_by(site_id) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
@@ -3281,8 +3316,8 @@ cc_ped_site <- tx_curr %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(site_id, agency, partner, SNU1, PSNU, site, ajuda, tx_curr_target, p_eid_n, p_eid_hei_pos, per_eid_pos, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
-  arrange(agency, partner, SNU1, PSNU, site)
+  select(site_id, agency, partner, snu1, psnu, site, ajuda, tx_curr_target, p_eid_n, p_eid_hei_pos, per_eid_pos, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls) %>%
+  arrange(agency, partner, snu1, psnu, site)
 
 
 #---------------------------------------------
@@ -3324,8 +3359,8 @@ cc_ped_ajuda <- cc_ped_site %>%
 
 tx_curr_target <- df_ped %>%
   filter(indicator == "TX_CURR", target > 0) %>%
-  select(PSNU, target) %>%
-  group_by(PSNU) %>%
+  select(psnu, target) %>%
+  group_by(psnu) %>%
   summarize(target = sum(target, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr_target = "target") 
@@ -3335,8 +3370,8 @@ tx_curr_target <- df_ped %>%
 
 tx_curr <- df_ped %>%
   filter(indicator == "TX_CURR", Q > 0) %>%
-  select(agency, partner, SNU1, PSNU, Q) %>%
-  group_by(agency, partner, SNU1, PSNU) %>%
+  select(agency, partner, snu1, psnu, Q) %>%
+  group_by(agency, partner, snu1, psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_curr = starts_with("Q")) 
@@ -3346,8 +3381,8 @@ tx_curr <- df_ped %>%
 
 hts_tst <- df_ped %>%
   filter(indicator == "HTS_TST", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst = starts_with("Q")) %>%
@@ -3358,8 +3393,8 @@ hts_tst <- df_ped %>%
 
 hts_tst_pos <- df_ped %>%
   filter(indicator == "HTS_TST_POS", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(hts_tst_pos = starts_with("Q")) %>%
@@ -3370,8 +3405,8 @@ hts_tst_pos <- df_ped %>%
 
 p_eid_n <- df_ped %>%
   filter(indicator == "PMTCT_EID", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(p_eid_n = starts_with("Q"))
@@ -3381,8 +3416,8 @@ p_eid_n <- df_ped %>%
 
 p_eid_hei_pos <- df_ped %>%
   filter(indicator == "PMTCT_HEI_POS", disag == "Age/HIVStatus", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(p_eid_hei_pos = starts_with("Q"))
@@ -3392,8 +3427,8 @@ p_eid_hei_pos <- df_ped %>%
 
 tx_new <- df_ped %>%
   filter(indicator == "TX_NEW", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_new = starts_with("Q"))
@@ -3402,9 +3437,9 @@ tx_new <- df_ped %>%
 # TX_PVLS DENOMINATOR REFERENCE OBJECT
 
 tx_pvls_d <- df_ped %>%
-  filter(indicator == "TX_PVLS", numeratorDenom == "D", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  filter(indicator == "TX_PVLS", numeratordenom == "D", Q > 0) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_d = starts_with("Q"))
@@ -3413,9 +3448,9 @@ tx_pvls_d <- df_ped %>%
 # TX_PVLS NUMERATOR REFERENCE OBJECT
 
 tx_pvls_n <- df_ped %>%
-  filter(indicator == "TX_PVLS", numeratorDenom == "N", Q > 0) %>%
-  select(PSNU, Q) %>%
-  group_by(PSNU) %>%
+  filter(indicator == "TX_PVLS", numeratordenom == "N", Q > 0) %>%
+  select(psnu, Q) %>%
+  group_by(psnu) %>%
   summarize(Q = sum(Q, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(tx_pvls_n = starts_with("Q"))
@@ -3424,14 +3459,14 @@ tx_pvls_n <- df_ped %>%
 # JOIN REFERENCE OBJECTS & CREATE DISTRICT CASCADE
 
 cc_ped_psnu <- tx_curr %>%
-  left_join(tx_curr_target, by = "PSNU") %>%
-  left_join(hts_tst, by = "PSNU") %>%
-  left_join(p_eid_n, by = "PSNU") %>%
-  left_join(hts_tst_pos, by = "PSNU") %>%
-  left_join(p_eid_hei_pos, by = "PSNU") %>%
-  left_join(tx_new, by = "PSNU") %>%
-  left_join(tx_pvls_d, by = "PSNU") %>%
-  left_join(tx_pvls_n, by  = "PSNU") %>%
+  left_join(tx_curr_target, by = "psnu") %>%
+  left_join(hts_tst, by = "psnu") %>%
+  left_join(p_eid_n, by = "psnu") %>%
+  left_join(hts_tst_pos, by = "psnu") %>%
+  left_join(p_eid_hei_pos, by = "psnu") %>%
+  left_join(tx_new, by = "psnu") %>%
+  left_join(tx_pvls_d, by = "psnu") %>%
+  left_join(tx_pvls_n, by  = "psnu") %>%
   replace_na(list(hts_tst = 0,
                   p_eid_n = 0,
                   hts_tst_pos = 0,
@@ -3448,13 +3483,13 @@ cc_ped_psnu <- tx_curr %>%
          per_tx_pvl = tx_pvls_d / tx_curr,
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
-  select(agency, partner, SNU1, PSNU, tx_curr_target, p_eid_n, p_eid_hei_pos, per_eid_pos, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, psnu, tx_curr_target, p_eid_n, p_eid_hei_pos, per_eid_pos, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 #---------------------------------------------
 # CREATE PROVINCE CASCADE
 
 cc_ped_snu1 <- cc_ped_psnu %>%
-  group_by(agency, partner, SNU1) %>%
+  group_by(agency, partner, snu1) %>%
   summarize(tx_curr_target = sum(tx_curr_target, na.rm = TRUE),
             hts_tst = sum(hts_tst, na.rm = TRUE),
             p_eid_n = sum(p_eid_n, na.rm = TRUE),            
@@ -3472,7 +3507,7 @@ cc_ped_snu1 <- cc_ped_psnu %>%
          per_tx_pvls = tx_pvls_n / tx_pvls_d
   ) %>%
   ungroup() %>%
-  select(agency, partner, SNU1, tx_curr_target, p_eid_n, p_eid_hei_pos, per_eid_pos, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
+  select(agency, partner, snu1, tx_curr_target, p_eid_n, p_eid_hei_pos, per_eid_pos, hts_tst, hts_tst_pos, per_hts_tst_pos, tx_new, per_linkage, tx_curr, per_tx_curr_target, tx_pvls_d, per_tx_pvl, tx_pvls_n, per_tx_pvls)
 
 
 #---------------------------------------------
@@ -3623,14 +3658,14 @@ addStyle(wb_pediatrico_cum, "cc_ped_site", style = pct, cols=c(11,14,14,16,18,20
 # SAVE ALL CLINICAL CASCADE WORKBOOKS
 ##############################################
 
-saveWorkbook(wb_overall, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_overall.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
-saveWorkbook(wb_female, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_female.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
-saveWorkbook(wb_male, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_male.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
-saveWorkbook(wb_pediatrico, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_ped.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
-saveWorkbook(wb_overall_cum, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_overall_cum.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
-saveWorkbook(wb_female_cum, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_female_cum.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
-saveWorkbook(wb_male_cum, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_male_cum.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
-saveWorkbook(wb_pediatrico_cum, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_ped_cum.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
+#saveWorkbook(wb_overall, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_overall.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
+#saveWorkbook(wb_female, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_female.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
+#saveWorkbook(wb_male, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_male.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
+#saveWorkbook(wb_pediatrico, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_ped.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
+#saveWorkbook(wb_overall_cum, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_overall_cum.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
+#saveWorkbook(wb_female_cum, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_female_cum.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
+#saveWorkbook(wb_male_cum, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_male_cum.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
+#saveWorkbook(wb_pediatrico_cum, file = "C:/Users/jlara/Documents/R/r_projects/mer/output/ct/fy20q1/cc_cascade_ped_cum.xlsx", overwrite = TRUE) # UPDATED PATH!!!!!
 
 
 
