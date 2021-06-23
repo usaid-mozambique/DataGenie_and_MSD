@@ -12,7 +12,7 @@ library(openxlsx)
 # GENIE IMPORT AND SET UP OF BASE DATAFRAME. NOTE THAT "FILTER" CODE LINE ARE ANALYSIS SPECIFIC 
 
 #df <- read.delim("C:/Users/jlara/Documents/USAID/00. SI/00. HIV/01. M&E/00. Data/01. MER/FY 2019/Q4/99. Data/MER_Structured_Datasets_SITE_IM_FY17-20_20191115_v1_1_Mozambique.txt") %>% ####### NEEDS TO BE MANUALLY IMPORTED THROUGH MENU WITH EACH DATA GENIE UPDATE
-df <- read.delim("C:/Users/cnhantumbo/Documents/DataGenie/PEPFAR-Data-Genie-SiteByIMs-2020-01-27.txt") %>% ####### NEEDS TO BE MANUALLY IMPORTED THROUGH MENU WITH EACH DATA GENIE UPDATE 
+df <- read.delim("C:/Users/cnhantumbo/Documents/DataGenie/SOURCE.txt") %>% ####### NEEDS TO BE MANUALLY IMPORTED THROUGH MENU WITH EACH DATA GENIE UPDATE 
  rename(target = targets, 
          site_id = facilityuid, 
          disag = standardizeddisaggregate,
@@ -28,20 +28,22 @@ df <- read.delim("C:/Users/cnhantumbo/Documents/DataGenie/PEPFAR-Data-Genie-Site
 
 df$partner <- as.character(df$partner)
 
+
+#--------------------------------Updated the Mechanisms---------------------------------------------------------
 df <- df %>%
   mutate(partner = 
            if_else(partner == "FADM HIV Treatment Scale-Up Program", "FADM",
-                   if_else(partner == "Clinical Services System Strenghening (CHASS)", "CHASS",
+                   if_else(partner == "Community HIV Activity in Zambezia", "N'weti Zambezia",
                            if_else(partner == "Friends in Global Health", "FGH", 
                                    if_else(partner == "FADM Prevention and Circumcision Program", "FADM PCP",
                                            if_else(partner == "N'weti - Strengthening Civil Society Engagement to Improve Sexual and Reproductive Health and Service Delivery for Youth", "N'weti", 
-                                                   if_else(partner == "Strengthening High Impact Interventions for an AIDS-Free Generation (AIDSFree) Project", "AIDSFree", 
+                                                   if_else(partner == "VMMC Services in Manica and Tete", "VMMC", 
                                                            if_else(partner =="Community Based HIV Services for the Southern Region","N'weti", 
                                                                    if_else(partner == "Integrated HIV Prevention and Health Services for Key and Priority Populations (HIS-KP)", "Passos",
                                                                            if_else(partner == "FADM Prevention and Circumcision Program", "FADM",
                                                                                    if_else(partner == "Johns Hopkins", "Jhpiego",
                                                                                            if_else(partner == "Efficiencies for Clinical HIV Outcomes (ECHO)", "ECHO", partner)
-                                                                                           )
+                                                                                   )
                                                                            )
                                                                    )
                                                            )
@@ -52,6 +54,7 @@ df <- df %>%
                    )
            )
   ) 
+
 
 df_a <- df %>%
   filter(fiscal_year == "2020")
